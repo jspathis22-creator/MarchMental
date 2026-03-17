@@ -1,0 +1,33 @@
+:root {
+  --bg: #060610;
+  --card: #0c0d18;
+  --alt: #111222;
+  --bdr: #1c1d32;
+  --acc: #00e676;
+  --hot: #ff2d55;
+  --gold: #ffab00;
+  --blue: #448aff;
+  --txt: #eaeaf2;
+  --dim: #555580;
+  --dimmer: #2a2a42;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--txt); font-family: 'DM Sans', sans-serif; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 4px; }
+
+@keyframes slideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInLeft { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 12px rgba(0,230,118,.15); } 50% { box-shadow: 0 0 28px rgba(0,230,118,.3); } }
+@keyframes ghostFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes silenceIn { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes liveDot { 0%, 100% { box-shadow: 0 0 4px var(--acc); } 50% { box-shadow: 0 0 14px var(--acc); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes popIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+
+.tab { cursor: pointer; transition: all .15s; border: none; font-family: inherit; }
+.tab:hover { background: var(--alt) !important; }
+.hov { transition: all .15s; cursor: pointer; }
+.hov:hover { transform: translateY(-2px); border-color: rgba(0,230,118,.3) !important; }
