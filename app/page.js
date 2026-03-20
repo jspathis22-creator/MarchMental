@@ -80,14 +80,11 @@ export default function Page() {
               if (next[drafter]?.[parseInt(idx)]) {
                 const p = { ...next[drafter][parseInt(idx)] };
                 const oldPts = p.pts;
-                // API explicitly returned this player — update with its data
                 p.pts = score.totalPts;
                 p.games = score.games;
                 p.gamesPlayed = score.games.length;
                 next[drafter] = [...next[drafter]];
                 next[drafter][parseInt(idx)] = p;
-                // NOTE: players NOT in json.playerScores are never touched —
-                // they keep whatever state they had. This handles API hiccups.
 
                 // Add to Tin if points changed
                 if (score.totalPts > oldPts) {
@@ -126,28 +123,6 @@ export default function Page() {
                   }
                 }
               }
-            }
-            return next;
-          });
-        }
-        // Mark players as eliminated based on team losses
-        if (json.eliminatedTeams && json.eliminatedTeams.length > 0) {
-          const elim = new Set(json.eliminatedTeams.map(t => t.toLowerCase()));
-          setData(prev => {
-            const next = { ...prev };
-            for (const drafter of DRAFTERS) {
-              const ps = next[drafter] || [];
-              let changed = false;
-              const updated = ps.map(p => {
-                const isElim = elim.has(p.team.toLowerCase()) || 
-                  [...elim].some(e => e.includes(p.team.toLowerCase()) || p.team.toLowerCase().includes(e));
-                if (isElim && !p.eliminated) {
-                  changed = true;
-                  return { ...p, eliminated: true };
-                }
-                return p;
-              });
-              if (changed) next[drafter] = updated;
             }
             return next;
           });
