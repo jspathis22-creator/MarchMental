@@ -80,11 +80,14 @@ export default function Page() {
               if (next[drafter]?.[parseInt(idx)]) {
                 const p = { ...next[drafter][parseInt(idx)] };
                 const oldPts = p.pts;
+                // API explicitly returned this player — update with its data
                 p.pts = score.totalPts;
                 p.games = score.games;
                 p.gamesPlayed = score.games.length;
                 next[drafter] = [...next[drafter]];
                 next[drafter][parseInt(idx)] = p;
+                // NOTE: players NOT in json.playerScores are never touched —
+                // they keep whatever state they had. This handles API hiccups.
 
                 // Add to Tin if points changed
                 if (score.totalPts > oldPts) {
@@ -126,6 +129,88 @@ export default function Page() {
             }
             return next;
           });
+        }
+        // Mark players as eliminated based on their own game results
+        // If a player played in a FINAL game and their team lost, they're out
+        if (json.playerScores) {
+          setData(prev => {
+            const next = { ...prev };
+            for (const [key, score] of Object.entries(json.playerScores)) {
+              const [drafter, idx] = key.split(':');
+              const i = parseInt(idx);
+              if (next[drafter]?.[i]) {
+                const p = next[drafter][i];
+                if (p.eliminated) continue; // already eliminated
+                
+                for (const g of (score.games || [])) {
+                  if (g.status === 'STATUS_FINAL' && g.homeScore !== undefined) {
+                    // If opponent is the away team, player is home (and vice versa)
+                    const opponentIsAway = (g.awayTeam || '').toLowerCase() === (g.opponent || '').toLowerCase();
+                    let teamLost = false;
+                    if (opponentIsAway && g.homeScore < g.awayScore) teamLost = true;
+                    if (!opponentIsAway && g.awayScore < g.homeScore) teamLost = true;
+                    
+                    if (teamLost) {
+                      next[drafter] = [...next[drafter]];
+                      next[drafter][i] = { ...p, eliminated: true };
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+            return next;
+          });
+        }
+        // Also check completedGames for players whose teams lost but weren't in box scores
+        if (json.completedGames && json.completedGames.length > 0) {
+          // Map our data.js names to how ESPN might display them
+          const TEAM_ALIASES = {
+            'miami fl': ['miami hurricanes','miami (fl)'],
+            'miami oh': ['miami (oh) redhawks','miami (oh)','miami redhawks'],
+            "st. john's": ['st. john\'s red storm','st. john\'s (ny)'],
+            'south florida': ['south florida bulls','usf bulls'],
+            'north carolina': ['north carolina tar heels','unc'],
+            'nc state': ['nc state wolfpack','north carolina state'],
+            'michigan state': ['michigan state spartans'],
+            'ohio state': ['ohio state buckeyes'],
+            'iowa state': ['iowa state cyclones'],
+            'texas tech': ['texas tech red raiders'],
+            'texas a&m': ['texas a&m aggies'],
+            'north dakota state': ['north dakota state bison'],
+            'high point': ['high point panthers'],
+            'cal baptist': ['california baptist lancers','cal baptist lancers'],
+            "saint mary's": ['saint mary\'s gaels','saint mary\'s (ca)'],
+          };
+
+          const losingTeams = [];
+          for (const g of json.completedGames) {
+            if (g.home.score > g.away.score) losingTeams.push(g.away.name.toLowerCase(), g.away.abbr.toLowerCase());
+            else if (g.away.score > g.home.score) losingTeams.push(g.home.name.toLowerCase(), g.home.abbr.toLowerCase());
+          }
+          if (losingTeams.length > 0) {
+            setData(prev => {
+              const next = { ...prev };
+              for (const drafter of DRAFTERS) {
+                const ps = next[drafter] || [];
+                let changed = false;
+                const updated = ps.map(p => {
+                  if (p.eliminated) return p;
+                  const pt = p.team.toLowerCase();
+                  // Check startsWith
+                  let isElim = losingTeams.some(lt => lt.startsWith(pt) || lt === pt);
+                  // Check aliases
+                  if (!isElim && TEAM_ALIASES[pt]) {
+                    isElim = losingTeams.some(lt => TEAM_ALIASES[pt].some(alias => lt.startsWith(alias) || lt === alias || alias.startsWith(lt)));
+                  }
+                  if (isElim) { changed = true; return { ...p, eliminated: true }; }
+                  return p;
+                });
+                if (changed) next[drafter] = updated;
+              }
+              return next;
+            });
+          }
         }
         if (json.liveGames) setLiveGames(json.liveGames);
         if (json.upcomingGames) setUpcomingGames(json.upcomingGames);

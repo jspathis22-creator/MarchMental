@@ -1,173 +1,251 @@
 // app/api/scores/route.js
-// Polls ESPN's public scoreboard endpoint for live NCAA tournament scores
-// Returns player box score data matched to our draft pool
+export const dynamic = 'force-dynamic';
 
-import { PICKS, DRAFTERS, TEAM_IDS } from '../../data';
+import { PICKS, DRAFTERS } from '../../data';
 
 const ESPN_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard';
 const ESPN_BOXSCORE = (gameId) => `https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${gameId}`;
 
-// Build a lookup of all drafted player names -> { drafter, playerIndex }
+// Tournament dates — Round of 64 through championship
+const TOURNAMENT_DATES = [
+  '20260319', '20260320', // Round of 64
+  '20260321', '20260322', // Round of 32
+  '20260326', '20260327', // Sweet 16
+  '20260328', '20260329', // Elite 8
+  '20260404',             // Final Four
+  '20260406',             // Championship
+];
+
 function buildPlayerLookup() {
   const lookup = {};
   for (const drafter of DRAFTERS) {
     const picks = PICKS[drafter] || [];
     picks.forEach((p, idx) => {
-      // Normalize name for matching
-      const key = p.name.toLowerCase().replace(/[^a-z ]/g, '').trim();
+      if (!p || !p.name) return;
+      const key = normalizeName(p.name);
       lookup[key] = { drafter, idx, name: p.name, team: p.team };
     });
   }
   return lookup;
 }
 
-// Try to match an ESPN player name to our draft pool
-function matchPlayer(espnName, lookup) {
-  const key = espnName.toLowerCase().replace(/[^a-z ]/g, '').trim();
-  // Direct match
-  if (lookup[key]) return lookup[key];
-  // Partial match (last name)
-  const parts = key.split(' ');
-  const lastName = parts[parts.length - 1];
-  for (const [k, v] of Object.entries(lookup)) {
-    if (k.includes(lastName) && k.includes(parts[0]?.[0] || '')) return v;
+function normalizeName(name) {
+  return name
+    .toLowerCase()
+    .replace(/[''`.]/g, '')
+    .replace(/[^a-z ]/g, '')
+    .replace(/\s+(jr|sr|ii|iii|iv)\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchPlayer(espnName, lookup, teamsInGame) {
+  const key = normalizeName(espnName);
+
+  // Exact match — verify team
+  if (lookup[key]) {
+    if (verifyTeam(lookup[key].team, teamsInGame)) return lookup[key];
+    return null;
   }
+
+  // First + last name match — verify team
+  const parts = key.split(' ').filter(p => p.length > 0);
+  if (parts.length < 2) return null;
+  const firstName = parts[0];
+  const lastName = parts[parts.length - 1];
+
+  for (const [k, v] of Object.entries(lookup)) {
+    const lParts = k.split(' ').filter(p => p.length > 0);
+    if (lParts.length < 2) continue;
+    if (lastName === lParts[lParts.length - 1] && firstName === lParts[0]) {
+      if (verifyTeam(v.team, teamsInGame)) return v;
+    }
+  }
+
   return null;
 }
 
-export async function GET(request) {
+function verifyTeam(playerTeam, teamsInGame) {
+  const pt = playerTeam.toLowerCase();
+  return teamsInGame.some(t => {
+    const gt = t.toLowerCase();
+    return gt.includes(pt) || pt.includes(gt);
+  });
+}
+
+// Get all tournament dates up to and including today
+function getActiveDates() {
+  const today = new Date();
+  const todayStr = today.getFullYear().toString() +
+    String(today.getMonth() + 1).padStart(2, '0') +
+    String(today.getDate()).padStart(2, '0');
+
+  return TOURNAMENT_DATES.filter(d => d <= todayStr);
+}
+
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const group = searchParams.get('group') || '100'; // 100 = NCAA tournament
-    const dates = searchParams.get('dates') || '';
-
-    // Fetch scoreboard
-    let url = `${ESPN_SCOREBOARD}?groups=${group}&limit=50`;
-    if (dates) url += `&dates=${dates}`;
-
-    const sbRes = await fetch(url, { next: { revalidate: 30 } });
-    const sbData = await sbRes.json();
-    const events = sbData?.events || [];
-
     const lookup = buildPlayerLookup();
-    const playerScores = {}; // { "drafter:idx" -> { pts, games: [...] } }
+    const playerScores = {};  // key -> { drafter, idx, name, team, totalPts, games[] }
     const liveGames = [];
     const completedGames = [];
     const upcomingGames = [];
+    const processedGameIds = new Set(); // prevent double-processing
 
-    for (const event of events) {
-      const competition = event.competitions?.[0];
-      if (!competition) continue;
+    const activeDates = getActiveDates();
 
-      const status = competition.status?.type?.name; // STATUS_SCHEDULED, STATUS_IN_PROGRESS, STATUS_FINAL
-      const gameId = event.id;
-      const homeTeam = competition.competitors?.find(c => c.homeAway === 'home');
-      const awayTeam = competition.competitors?.find(c => c.homeAway === 'away');
+    // Also fetch today's scoreboard for live games (no date param = today)
+    const datesToFetch = [...new Set([...activeDates, 'TODAY'])];
 
-      const gameInfo = {
-        id: gameId,
-        status,
-        statusDetail: competition.status?.type?.detail || '',
-        displayClock: competition.status?.displayClock || '',
-        period: competition.status?.period || 0,
-        home: {
-          name: homeTeam?.team?.displayName || '',
-          abbr: homeTeam?.team?.abbreviation || '',
-          score: parseInt(homeTeam?.score || '0'),
-          logo: homeTeam?.team?.logo || '',
-        },
-        away: {
-          name: awayTeam?.team?.displayName || '',
-          abbr: awayTeam?.team?.abbreviation || '',
-          score: parseInt(awayTeam?.score || '0'),
-          logo: awayTeam?.team?.logo || '',
-        },
-      };
+    for (const dateStr of datesToFetch) {
+      let url;
+      if (dateStr === 'TODAY') {
+        url = `${ESPN_SCOREBOARD}?groups=100&limit=100`;
+      } else {
+        url = `${ESPN_SCOREBOARD}?groups=100&limit=100&dates=${dateStr}`;
+      }
 
-      if (status === 'STATUS_SCHEDULED') {
-        upcomingGames.push({
-          ...gameInfo,
-          startTime: event.date,
-          broadcast: competition.broadcasts?.[0]?.names?.[0] || '',
-        });
+      let sbData;
+      try {
+        const sbRes = await fetch(url, { cache: 'no-store' });
+        sbData = await sbRes.json();
+      } catch (e) {
+        console.error(`Failed to fetch scoreboard for ${dateStr}:`, e.message);
         continue;
       }
 
-      if (status === 'STATUS_IN_PROGRESS') {
-        liveGames.push(gameInfo);
-      } else if (status === 'STATUS_FINAL') {
-        completedGames.push(gameInfo);
-      }
+      const events = sbData?.events || [];
 
-      // Fetch box score for live/completed games
-      try {
-        const boxRes = await fetch(ESPN_BOXSCORE(gameId), { next: { revalidate: 30 } });
-        const boxData = await boxRes.json();
-        const players = boxData?.boxscore?.players || [];
+      for (const event of events) {
+        const gameId = event.id;
+        if (processedGameIds.has(gameId)) continue;
+        processedGameIds.add(gameId);
 
-        for (const teamBox of players) {
-          for (const statGroup of teamBox.statistics || []) {
-            for (const athlete of statGroup.athletes || []) {
-              const espnName = athlete.athlete?.displayName || '';
-              const match = matchPlayer(espnName, lookup);
-              if (!match) continue;
+        const competition = event.competitions?.[0];
+        if (!competition) continue;
 
-              const stats = {};
-              const labels = statGroup.labels || [];
-              const values = athlete.stats || [];
-              labels.forEach((label, i) => { stats[label] = values[i]; });
+        const status = competition.status?.type?.name;
+        const homeTeam = competition.competitors?.find(c => c.homeAway === 'home');
+        const awayTeam = competition.competitors?.find(c => c.homeAway === 'away');
 
-              const pts = parseInt(stats['PTS'] || '0');
-              const key = `${match.drafter}:${match.idx}`;
+        const homeName = homeTeam?.team?.displayName || '';
+        const awayName = awayTeam?.team?.displayName || '';
+        const homeAbbr = homeTeam?.team?.abbreviation || '';
+        const awayAbbr = awayTeam?.team?.abbreviation || '';
 
-              if (!playerScores[key]) {
-                playerScores[key] = { drafter: match.drafter, idx: match.idx, name: match.name, totalPts: 0, games: [] };
+        const gameInfo = {
+          id: gameId, status,
+          statusDetail: competition.status?.type?.detail || '',
+          displayClock: competition.status?.displayClock || '',
+          period: competition.status?.period || 0,
+          date: event.date,
+          home: { name: homeName, abbr: homeAbbr, score: parseInt(homeTeam?.score || '0'), logo: homeTeam?.team?.logo || '' },
+          away: { name: awayName, abbr: awayAbbr, score: parseInt(awayTeam?.score || '0'), logo: awayTeam?.team?.logo || '' },
+        };
+
+        if (status === 'STATUS_SCHEDULED') {
+          upcomingGames.push({ ...gameInfo, startTime: event.date, broadcast: competition.broadcasts?.[0]?.names?.[0] || '' });
+          continue;
+        }
+        if (status === 'STATUS_IN_PROGRESS') liveGames.push(gameInfo);
+        else if (status === 'STATUS_FINAL') completedGames.push(gameInfo);
+
+        // Fetch box score for live AND completed games
+        const teamsInGame = [homeName, awayName, homeAbbr, awayAbbr];
+
+        try {
+          const boxRes = await fetch(ESPN_BOXSCORE(gameId), { cache: 'no-store' });
+          const boxData = await boxRes.json();
+          const boxPlayers = boxData?.boxscore?.players || [];
+
+          for (const teamBox of boxPlayers) {
+            for (const statGroup of teamBox.statistics || []) {
+              for (const athlete of statGroup.athletes || []) {
+                const espnName = athlete.athlete?.displayName || '';
+                const match = matchPlayer(espnName, lookup, teamsInGame);
+                if (!match) continue;
+
+                const stats = {};
+                const labels = statGroup.labels || [];
+                const values = athlete.stats || [];
+                labels.forEach((label, i) => { stats[label] = values[i]; });
+
+                const pts = parseInt(stats['PTS'] || '0');
+                if (isNaN(pts)) continue;
+
+                const key = `${match.drafter}:${match.idx}`;
+
+                if (!playerScores[key]) {
+                  playerScores[key] = {
+                    drafter: match.drafter, idx: match.idx,
+                    name: match.name, team: match.team,
+                    totalPts: 0, games: []
+                  };
+                }
+
+                // Find or add this game
+                const existingGame = playerScores[key].games.find(g => g.gameId === gameId);
+                if (existingGame) {
+                  // Update — ESPN's latest data is authoritative
+                  existingGame.pts = pts;
+                  existingGame.stats = stats;
+                  existingGame.status = status;
+                  existingGame.homeScore = gameInfo.home.score;
+                  existingGame.awayScore = gameInfo.away.score;
+                } else {
+                  playerScores[key].games.push({
+                    gameId, pts, stats, status,
+                    date: event.date,
+                    opponent: homeName.toLowerCase().includes(match.team.toLowerCase()) ? awayName : homeName,
+                    homeTeam: homeName, awayTeam: awayName,
+                    homeScore: gameInfo.home.score, awayScore: gameInfo.away.score,
+                  });
+                }
+
+                // Total is always sum of all games — single source of truth
+                playerScores[key].totalPts = playerScores[key].games.reduce((s, g) => s + g.pts, 0);
               }
-
-              // Check if this game is already tracked
-              const existingGame = playerScores[key].games.find(g => g.gameId === gameId);
-              if (existingGame) {
-                existingGame.pts = pts;
-                existingGame.stats = stats;
-                existingGame.status = status;
-              } else {
-                playerScores[key].games.push({
-                  gameId,
-                  pts,
-                  stats,
-                  status,
-                  opponent: gameInfo.home.name === match.team ? gameInfo.away.name : gameInfo.home.name,
-                });
-              }
-
-              // Recalculate total
-              playerScores[key].totalPts = playerScores[key].games.reduce((s, g) => s + g.pts, 0);
             }
           }
+        } catch (e) {
+          console.error(`Box score error for game ${gameId}:`, e.message);
         }
-      } catch (e) {
-        console.error(`Failed to fetch box score for game ${gameId}:`, e.message);
       }
     }
 
-    // Build tournament progress
-    const totalGames = 67; // Total tournament games
+    // ===== ELIMINATION TRACKING =====
+    // Single elimination — losing team in any completed game is out
+    const eliminatedTeams = new Set();
+    for (const game of completedGames) {
+      if (game.home.score > game.away.score) {
+        // Away team lost
+        eliminatedTeams.add(game.away.name);
+        eliminatedTeams.add(game.away.abbr);
+      } else if (game.away.score > game.home.score) {
+        // Home team lost
+        eliminatedTeams.add(game.home.name);
+        eliminatedTeams.add(game.home.abbr);
+      }
+      // Tie shouldn't happen in tournament but ignore if it does
+    }
+
+    const totalGames = 63;
     const gamesPlayed = completedGames.length;
 
     return Response.json({
       playerScores,
+      eliminatedTeams: [...eliminatedTeams],
       liveGames,
-      completedGames,
-      upcomingGames,
+      completedGames: completedGames.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 30),
+      upcomingGames: upcomingGames.sort((a, b) => new Date(a.startTime) - new Date(b.startTime)),
       tournament: {
-        gamesPlayed,
-        totalGames,
+        gamesPlayed, totalGames,
         pct: Math.round((gamesPlayed / totalGames) * 100),
       },
       lastUpdated: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Score fetch error:', error);
+    console.error('Scores API error:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
