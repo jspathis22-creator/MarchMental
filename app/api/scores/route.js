@@ -65,11 +65,60 @@ function matchPlayer(espnName, lookup, teamsInGame) {
   return null;
 }
 
+// Teams that share name prefixes and need disambiguation
+const AMBIGUOUS_TEAMS = {
+  'miami fl': ['miami hurricanes', 'miami (fl)', 'miami fl'],
+  'miami oh': ['miami (oh)', 'miami redhawks', 'miami oh', 'miami (oh) redhawks'],
+  'tennessee': ['tennessee volunteers', 'tennessee vols'],
+  'tennessee state': ['tennessee state tigers', 'tennessee st'],
+  'north carolina': ['north carolina tar heels', 'unc tar heels'],
+  'nc state': ['nc state wolfpack', 'north carolina state', 'n.c. state'],
+  'south florida': ['south florida bulls', 'usf bulls', 'usf'],
+  'michigan': ['michigan wolverines'],
+  'michigan state': ['michigan state spartans'],
+  'ohio state': ['ohio state buckeyes'],
+  'iowa': ['iowa hawkeyes'],
+  'iowa state': ['iowa state cyclones'],
+  'saint mary\'s': ['saint mary\'s gaels', 'saint mary\'s (ca)', 'st. mary\'s'],
+  'cal baptist': ['california baptist', 'california baptist lancers', 'cal baptist lancers'],
+  'texas': ['texas longhorns'],
+  'texas tech': ['texas tech red raiders'],
+  'texas a&m': ['texas a&m aggies'],
+};
+
 function verifyTeam(playerTeam, teamsInGame) {
-  const pt = playerTeam.toLowerCase();
-  return teamsInGame.some(t => {
-    const gt = t.toLowerCase();
-    return gt.includes(pt) || pt.includes(gt);
+  const pt = playerTeam.toLowerCase().trim();
+  const gameTeams = teamsInGame.map(t => t.toLowerCase().trim());
+
+  // Check if this player's team has known disambiguation aliases
+  const aliases = AMBIGUOUS_TEAMS[pt];
+  if (aliases) {
+    return gameTeams.some(gt =>
+      gt === pt ||
+      aliases.some(a => gt.includes(a) || a.includes(gt)) ||
+      gt.startsWith(pt + ' ') // e.g. "miami fl" matches "miami fl hurricanes" but NOT "miami oh"
+    );
+  }
+
+  // For non-ambiguous teams: exact, starts-with, or contained — but only if
+  // the match isn't a substring of a longer distinct team name
+  return gameTeams.some(gt => {
+    if (gt === pt) return true;
+    if (gt.includes(pt)) {
+      // Make sure we're not matching "michigan" inside "michigan state"
+      const idx = gt.indexOf(pt);
+      const after = gt[idx + pt.length];
+      // OK if pt is at end, or next char is space (team name continues with mascot)
+      if (after === undefined || after === ' ') return true;
+      return false;
+    }
+    if (pt.includes(gt) && gt.length >= 3) {
+      const idx = pt.indexOf(gt);
+      const after = pt[idx + gt.length];
+      if (after === undefined || after === ' ') return true;
+      return false;
+    }
+    return false;
   });
 }
 

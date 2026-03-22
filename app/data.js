@@ -1,7 +1,7 @@
 // ===== ESPN IDs =====
 export const TEAM_IDS = {Duke:150,Arizona:12,Michigan:130,Florida:57,UConn:41,Purdue:2509,"Iowa State":66,Houston:248,"Michigan State":127,Gonzaga:2250,Virginia:258,Illinois:356,Kansas:2305,Arkansas:8,Alabama:333,Nebraska:158,"St. John's":2599,Wisconsin:275,"Texas Tech":2641,Vanderbilt:238,Louisville:97,BYU:252,Tennessee:2633,"North Carolina":153,UCLA:26,"Ohio State":194,Kentucky:96,"Miami FL":2390,Georgia:61,Iowa:2294,"Saint Louis":139,UCF:2116,"Utah State":328,"South Florida":58,VCU:2670,"NC State":152,Texas:251,SMU:2567,"Miami OH":193,"Northern Iowa":2460,McNeese:2377,"High Point":2272,Hofstra:2275,"Cal Baptist":2856,Troy:2653,Akron:2006,Hawaii:62,"North Dakota State":2449,Penn:219,"Wright State":2750,Furman:231,Siena:2561,UMBC:2692,Howard:47,LIU:2344,Lehigh:2348,"Prairie View A&M":2504,"Kennesaw State":338,Idaho:70,"Tennessee State":2590,"Queens NC":3101,"Santa Clara":2491,Villanova:222,Clemson:228,Missouri:142,"Texas A&M":245,"Saint Mary's":2608,"Hofstra":2275};
 
-export const PLAYER_IDS = {"Cameron Boozer":5041935,"Cayden Boozer":5041937,"Isaiah Evans":5061585,"Brayden Burries":5082206,"Koa Peat":5041953,"Jaden Bradley":4432737,"Yaxel Lendeborg":5175737,"Thomas Haugh":5080489,"Kingston Flemings":5149077,"Emanuel Sharp":5106058,"Graham Ike":4703396,"AJ Dybantsa":5142718,"Labaron Philon Jr":4873090,"Jeremy Fears Jr":4711255,"Braden Smith":5105854,"Fletcher Loyer":5105853,"Milan Momcilovic":4848637,"Joshua Jefferson":4870564,"Tamin Lipsey":5106254,"Darryn Peterson":5041955,"Alex Karaban":4917149,"Solo Ball":4895737,"Tarris Reed Jr":5105809,"Ryan Conwell":5107157,"Darius Acuff Jr":5142620,"Keaton Wagler":5254165,"Pryce Sandfort":4858604,"Alex Condon":5174657,"Boogie Fland":5238195,"Rueben Chinyelu":5174971,"Xaivian Lee":5107169,"Christian Anderson":5060701,"Tyler Tanner":5187600,"Duke Miles":4702049,"Ja'Kobi Gillespie":5107968,"Zuby Ejiofor":5106262,"Nick Boyd":4702654,"Elliot Cadeau":4869764,"Morez Johnson Jr":4873153,"Aday Mara":5174983,"Motiejus Krivas":5174954,"Trey Kaufman-Renn":5105855,"Bruce Thornton":4711257,"Jaxon Kohler":4898392,"Seth Trimble":4870570,"Andrej Stojakovic":5106044,"Bryce Hopkins":4870560,"David Mirkovic":5175740,"Bennett Stirtz":5107782,"Patrick Ngongba":4873209,"Braylon Mullins":5196916,"Flory Bidunga":5044426,"Kylan Boswell":4684269,"Trey McKenney":5041954,"Donovan Dent":5107782,"John Blackwell":5103630,"TJ Power":5105860,"Nate Ament":5164559,"Milos Uzan":5106272,"Otega Oweh":5174970,"Joseph Tugler":5060700,"Tavari Johnson":5107355,"Robert Wright III":5060709,"Cruz Davis":5196920,"Tyler Bilodeau":5175005,"Oscar Cluff":5107160,"Malik Reneau":4895747,"Tomislav Ivisic":5313010,"Boopie Miller":4898283,"Jaron Pierre Jr":5060710,"Meleek Thomas":5041951,"Terrence Hill Jr":5060712,"Trevon Brazile":4698719,"Latrell Wrightsell":4871350,"Dame Sarr":5175006,"Ivan Kharchenkov":5175741,"Chris Cenac Jr":5149078,"Izaiyah Nelson":5107170,"Rienk Mast":4898394,"Coen Carr":5041956};
+export const PLAYER_IDS = {"Cameron Boozer":5041935,"Cayden Boozer":5041937,"Isaiah Evans":5061585,"Brayden Burries":5082206,"Koa Peat":5041953,"Jaden Bradley":4432737,"Yaxel Lendeborg":5175737,"Thomas Haugh":5080489,"Kingston Flemings":5149077,"Emanuel Sharp":5106058,"Graham Ike":4703396,"AJ Dybantsa":5142718,"Labaron Philon Jr":4873090,"Jeremy Fears Jr":4711255,"Braden Smith":5105854,"Fletcher Loyer":5105853,"Milan Momcilovic":4848637,"Joshua Jefferson":4870564,"Tamin Lipsey":5106254,"Darryn Peterson":5041955,"Alex Karaban":4917149,"Solo Ball":4895737,"Tarris Reed Jr":5105809,"Ryan Conwell":5107157,"Darius Acuff Jr":5142620,"Keaton Wagler":5254165,"Pryce Sandfort":4858604,"Alex Condon":5174657,"Boogie Fland":5238195,"Rueben Chinyelu":5174971,"Xaivian Lee":5107169,"Christian Anderson":5060701,"Tyler Tanner":5187600,"Duke Miles":4702049,"Ja'Kobi Gillespie":5107968,"Zuby Ejiofor":5106262,"Nick Boyd":4702654,"Elliot Cadeau":4869764,"Morez Johnson Jr":4873153,"Aday Mara":5174983,"Motiejus Krivas":5174954,"Trey Kaufman-Renn":5105855,"Bruce Thornton":4711257,"Jaxon Kohler":4898392,"Seth Trimble":4870570,"Andrej Stojakovic":5106044,"Bryce Hopkins":4870560,"David Mirkovic":5175740,"Bennett Stirtz":5107782,"Patrick Ngongba":4873209,"Braylon Mullins":5196916,"Flory Bidunga":5044426,"Kylan Boswell":4684269,"Trey McKenney":5041954,"Donovan Dent":5107782,"John Blackwell":5103630,"TJ Power":5105860,"Nate Ament":5164559,"Milos Uzan":5106272,"Otega Oweh":5174970,"Joseph Tugler":5060700,"Tavari Johnson":5107355,"Robert Wright III":5060709,"Cruz Davis":5196920,"Tyler Bilodeau":5175005,"Oscar Cluff":5107160,"Malik Reneau":4895747,"Tomislav Ivisic":5313010,"Boopie Miller":4898283,"Jaron Pierre Jr":5060710,"Meleek Thomas":5041951,"Terrence Hill Jr":5060712,"Trevon Brazile":4698719,"Latrell Wrightsell":4871350,"Dame Sarr":5175006,"Ivan Kharchenkov":5175741,"Chris Cenac Jr":5149078,"Izaiyah Nelson":5107170,"Rienk Mast":4898394,"Coen Carr":5041956,"Dominique Daniels":5178207};
 
 export const teamLogo = (t) => TEAM_IDS[t] ? `https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${TEAM_IDS[t]}.png&w=64&h=64` : "";
 export const playerImg = (n) => PLAYER_IDS[n] ? `https://a.espncdn.com/i/headshots/mens-college-basketball/players/full/${PLAYER_IDS[n]}.png` : "";
@@ -27,7 +27,7 @@ export const PICKS = {
     P("Boogie Fland","Florida",1,11.6,"G",24,5),
     P("Rueben Chinyelu","Florida",1,11.4,"C",22,0),
     P("Xaivian Lee","Florida",1,11.6,"G",26,4),
-    P("Tyler Bilodeau","Arizona",1,10.5,"F",20,2),
+    P("Tyler Bilodeau","UCLA",7,10.5,"F",20,2),
     P("Terry Anderson","High Point",12,8.2,"G",18,3),
     P("Latrell Wrightsell","Alabama",4,11.5,"G",22,4),
   ],
@@ -39,7 +39,7 @@ export const PICKS = {
     P("Motiejus Krivas","Arizona",1,8.0,"C",16,0),
     P("Dailyn Swain","Texas",11,11.0,"G",22,3),
     P("Dame Sarr","Duke",1,9.4,"F",18,2),
-    P("Tomislav Ivisic","UConn",2,11.2,"C",22,1),
+    P("Tomislav Ivisic","Illinois",3,11.2,"C",22,1),
   ],
   Feder: [
     P("Thomas Haugh","Florida",1,17.2,"F",32,3),
@@ -58,7 +58,7 @@ export const PICKS = {
     P("Christian Anderson","Texas Tech",5,19.2,"G",42,7),
     P("Pryce Sandfort","Nebraska",4,17.9,"G",30,6),
     P("Oscar Cluff","Purdue",2,8.4,"G",16,2),
-    P("Dominique Daniels","Cal Baptist",13,6.8,"G",14,2),
+    P("Dominique Daniels","Cal Baptist",13,23.2,"G",47,7),
     P("Mikey Lewis","Saint Mary's",10,14.5,"G",24,3),
   ],
   Spathis: [

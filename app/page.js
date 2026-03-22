@@ -64,6 +64,7 @@ export default function Page() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [tin, setTin] = useState([]); // The Tin feed
   const [moments, setMoments] = useState([]);
+  const [revealedDead, setRevealedDead] = useState({}); // { playerName: true } to peek behind silence
 
   // Poll scores every 30s
   useEffect(() => {
@@ -166,22 +167,30 @@ export default function Page() {
         if (json.completedGames && json.completedGames.length > 0) {
           // Map our data.js names to how ESPN might display them
           const TEAM_ALIASES = {
-            'miami fl': ['miami hurricanes','miami (fl)'],
-            'miami oh': ['miami (oh) redhawks','miami (oh)','miami redhawks'],
+            'miami fl': ['miami hurricanes','miami (fl)','mia'],
+            'miami oh': ['miami (oh) redhawks','miami (oh)','miami redhawks','m-oh','mioh'],
             "st. john's": ['st. john\'s red storm','st. john\'s (ny)'],
-            'south florida': ['south florida bulls','usf bulls'],
+            'south florida': ['south florida bulls','usf bulls','usf'],
             'north carolina': ['north carolina tar heels','unc'],
             'nc state': ['nc state wolfpack','north carolina state'],
-            'michigan state': ['michigan state spartans'],
-            'ohio state': ['ohio state buckeyes'],
+            'michigan state': ['michigan state spartans','mich st','msu'],
+            'michigan': ['michigan wolverines','mich'],
+            'ohio state': ['ohio state buckeyes','osu'],
             'iowa state': ['iowa state cyclones'],
+            'iowa': ['iowa hawkeyes'],
             'texas tech': ['texas tech red raiders'],
             'texas a&m': ['texas a&m aggies'],
-            'north dakota state': ['north dakota state bison'],
+            'texas': ['texas longhorns'],
+            'north dakota state': ['north dakota state bison','ndsu'],
             'high point': ['high point panthers'],
-            'cal baptist': ['california baptist lancers','cal baptist lancers'],
+            'cal baptist': ['california baptist','california baptist lancers','cal baptist lancers'],
             "saint mary's": ['saint mary\'s gaels','saint mary\'s (ca)'],
+            'tennessee': ['tennessee volunteers','tennessee vols'],
+            'tennessee state': ['tennessee state tigers','tennessee st','tenn st'],
           };
+
+          // Words that indicate a DIFFERENT team when they follow a base name
+          const DISAM_SUFFIXES = ['state','tech','a&m','st','st.'];
 
           const losingTeams = [];
           for (const g of json.completedGames) {
@@ -197,12 +206,32 @@ export default function Page() {
                 const updated = ps.map(p => {
                   if (p.eliminated) return p;
                   const pt = p.team.toLowerCase();
-                  // Check startsWith
-                  let isElim = losingTeams.some(lt => lt.startsWith(pt) || lt === pt);
-                  // Check aliases
-                  if (!isElim && TEAM_ALIASES[pt]) {
-                    isElim = losingTeams.some(lt => TEAM_ALIASES[pt].some(alias => lt.startsWith(alias) || lt === alias || alias.startsWith(lt)));
+                  let isElim = false;
+
+                  // 1. Check aliases first (most reliable)
+                  if (TEAM_ALIASES[pt]) {
+                    isElim = losingTeams.some(lt =>
+                      lt === pt ||
+                      TEAM_ALIASES[pt].some(alias => lt === alias || lt.startsWith(alias + ' ') || alias.startsWith(lt + ' ') || lt === alias)
+                    );
                   }
+
+                  // 2. Fallback: startsWith with word-boundary safety
+                  if (!isElim) {
+                    isElim = losingTeams.some(lt => {
+                      if (lt === pt) return true;
+                      if (lt.startsWith(pt)) {
+                        const rest = lt.slice(pt.length).trim();
+                        // If the next word is a disambiguation suffix, this is a DIFFERENT team
+                        const nextWord = rest.split(' ')[0];
+                        if (DISAM_SUFFIXES.includes(nextWord)) return false;
+                        // Otherwise it's likely a mascot name (e.g. "tennessee volunteers")
+                        return rest.length === 0 || rest[0] === ' ';
+                      }
+                      return false;
+                    });
+                  }
+
                   if (isElim) { changed = true; return { ...p, eliminated: true }; }
                   return p;
                 });
@@ -441,9 +470,14 @@ export default function Page() {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(360px,1fr))', gap:8 }}>
             {(data[sel]||[]).map((p, i) => (
               <div key={p.name} className="hov" style={{ display:'flex', alignItems:'center', gap:14, padding:14, background:K.card, border:`1px solid ${K.bdr}`, borderRadius:12, position:'relative', overflow:'hidden', animation:`slideIn .3s ease-out ${i*.06}s both`, borderLeft:SEED6_TEAMS.includes(p.team)?`3px solid ${K.blue}`:SEED11_TEAMS.includes(p.team)?`3px solid ${K.hot}`:'3px solid transparent' }}>
-                {p.eliminated && <div style={{ position:'absolute', inset:0, background:'rgba(6,6,16,.82)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:3, backdropFilter:'blur(3px)', animation:'silenceIn .4s ease-out' }}>
+                {p.eliminated && <div onClick={() => setRevealedDead(prev => ({ ...prev, [p.name]: !prev[p.name] }))} style={{ position:'absolute', inset:0, background: revealedDead[p.name] ? 'rgba(6,6,16,.55)' : 'rgba(6,6,16,.82)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:3, backdropFilter: revealedDead[p.name] ? 'blur(1px)' : 'blur(3px)', animation:'silenceIn .4s ease-out', cursor:'pointer', transition:'background .3s, backdrop-filter .3s' }}>
                   <div style={{ fontFamily:"'Anybody',sans-serif", fontSize:18, fontWeight:900, color:K.dim, letterSpacing:4 }}>SILENCE NOW</div>
                   <div style={{ fontSize:11, color:K.dimmer, marginTop:4 }}>{p.name} · {p.team} eliminated</div>
+                  {revealedDead[p.name] && <div style={{ marginTop:8, display:'flex', gap:12, alignItems:'center' }}>
+                    <span style={{ fontSize:16, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:K.dim }}>{p.pts} pts</span>
+                    {p.gamesPlayed > 0 && <span style={{ fontSize:11, color:K.dimmer }}>{p.gamesPlayed} game{p.gamesPlayed!==1?'s':''}</span>}
+                  </div>}
+                  {!revealedDead[p.name] && <div style={{ fontSize:9, color:K.dimmer, marginTop:6 }}>tap to reveal</div>}
                 </div>}
                 <div style={{ fontSize:11, fontWeight:700, color:K.dim, width:22, textAlign:'center', flexShrink:0 }}>R{i+1}</div>
                 <Avatar name={p.name} team={p.team} seed={p.seed} size={54}/>
@@ -526,8 +560,8 @@ export default function Page() {
           ) : (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:10 }}>
               {dead.map((p, i) => (
-                <div key={p.name} style={{ background:K.card, border:`1px solid ${K.bdr}`, borderRadius:12, position:'relative', overflow:'hidden', animation:`slideIn .3s ease-out ${i*.05}s both` }}>
-                  <div style={{ padding:16, opacity:.25, filter:'grayscale(1)' }}>
+                <div key={p.name} style={{ background:K.card, border:`1px solid ${K.bdr}`, borderRadius:12, position:'relative', overflow:'hidden', animation:`slideIn .3s ease-out ${i*.05}s both`, cursor:'pointer' }} onClick={() => setRevealedDead(prev => ({ ...prev, [p.name]: !prev[p.name] }))}>
+                  <div style={{ padding:16, opacity: revealedDead[p.name] ? .6 : .25, filter: revealedDead[p.name] ? 'grayscale(.5)' : 'grayscale(1)', transition:'opacity .3s, filter .3s' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <Avatar name={p.name} team={p.team} seed={p.seed} size={48}/>
                       <div>
@@ -535,13 +569,15 @@ export default function Page() {
                         <div style={{ fontSize:11, display:'flex', alignItems:'center', gap:4 }}>
                           <TeamBadge team={p.team} size={12}/>{p.team} · #{p.seed}
                         </div>
+                        {revealedDead[p.name] && <div style={{ fontSize:12, color:K.acc, marginTop:4, fontWeight:600 }}>{p.pts} pts{p.gamesPlayed > 0 ? ` in ${p.gamesPlayed} game${p.gamesPlayed!==1?'s':''}` : ''}</div>}
                       </div>
                     </div>
                   </div>
-                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'rgba(6,6,16,.65)', backdropFilter:'blur(2px)', animation:'silenceIn .5s ease-out' }}>
+                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background: revealedDead[p.name] ? 'rgba(6,6,16,.35)' : 'rgba(6,6,16,.65)', backdropFilter: revealedDead[p.name] ? 'blur(1px)' : 'blur(2px)', animation:'silenceIn .5s ease-out', transition:'background .3s, backdrop-filter .3s' }}>
                     <div style={{ fontFamily:"'Anybody',sans-serif", fontSize:22, fontWeight:900, color:K.dim, letterSpacing:5 }}>SILENCE NOW</div>
                     <div style={{ fontSize:11, color:K.dimmer, marginTop:4 }}>{p.name} · {p.team}</div>
                     <div style={{ fontSize:10, color:K.dimmer, marginTop:4 }}>Drafted by <span style={{ color:K.dim }}>{p.drafter}</span> · {p.pts} pts</div>
+                    {!revealedDead[p.name] && <div style={{ fontSize:9, color:K.dimmer, marginTop:6 }}>tap to reveal</div>}
                   </div>
                 </div>
               ))}
