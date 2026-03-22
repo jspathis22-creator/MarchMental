@@ -64,7 +64,6 @@ export default function Page() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [tin, setTin] = useState([]); // The Tin feed
   const [moments, setMoments] = useState([]);
-  const [revealedDead, setRevealedDead] = useState({}); // { playerName: true } to peek behind silence
   const [expandedPlayer, setExpandedPlayer] = useState(null); // player name to show game log
 
   // Map game dates to tournament round labels
@@ -486,27 +485,25 @@ export default function Page() {
             {(data[sel]||[]).map((p, i) => {
               const isExpanded = expandedPlayer === p.name;
               const games = (p.games || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+              const nextGame = upcomingGames.find(g => {
+                const names = [g.home.name, g.away.name, g.home.abbr, g.away.abbr].map(n => n.toLowerCase());
+                return names.some(n => n.includes(p.team.toLowerCase()) || p.team.toLowerCase().includes(n));
+              });
+              const liveGame = liveGames.find(g => {
+                const names = [g.home.name, g.away.name, g.home.abbr, g.away.abbr].map(n => n.toLowerCase());
+                return names.some(n => n.includes(p.team.toLowerCase()) || p.team.toLowerCase().includes(n));
+              });
               return (
-              <div key={p.name} style={{ background:K.card, border:`1px solid ${isExpanded ? K.acc+'44' : K.bdr}`, borderRadius:12, position:'relative', overflow:'hidden', animation:`slideIn .3s ease-out ${i*.06}s both`, borderLeft:SEED6_TEAMS.includes(p.team)?`3px solid ${K.blue}`:SEED11_TEAMS.includes(p.team)?`3px solid ${K.hot}`:'3px solid transparent', transition:'border-color .2s' }}>
-                {p.eliminated && <div onClick={(e) => { e.stopPropagation(); setRevealedDead(prev => ({ ...prev, [p.name]: true })); setExpandedPlayer(isExpanded ? null : p.name); }} style={{ position:'absolute', inset:0, background: revealedDead[p.name] ? 'rgba(6,6,16,.55)' : 'rgba(6,6,16,.82)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:3, backdropFilter: revealedDead[p.name] ? 'blur(1px)' : 'blur(3px)', animation:'silenceIn .4s ease-out', cursor:'pointer', transition:'background .3s, backdrop-filter .3s' }}>
-                  <div style={{ fontFamily:"'Anybody',sans-serif", fontSize:18, fontWeight:900, color:K.dim, letterSpacing:4 }}>SILENCE NOW</div>
-                  <div style={{ fontSize:11, color:K.dimmer, marginTop:4 }}>{p.name} · {p.team} eliminated</div>
-                  {revealedDead[p.name] && <div style={{ marginTop:8, display:'flex', gap:12, alignItems:'center' }}>
-                    <span style={{ fontSize:16, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:K.dim }}>{p.pts} pts</span>
-                    {p.gamesPlayed > 0 && <span style={{ fontSize:11, color:K.dimmer }}>{p.gamesPlayed} game{p.gamesPlayed!==1?'s':''}</span>}
-                  </div>}
-                  {revealedDead[p.name] && games.length > 0 && <div style={{ marginTop:10, width:'80%' }}>
-                    {games.map((g, gi) => (
-                      <div key={gi} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 0', borderTop:gi>0?`1px solid ${K.dimmer}`:'none' }}>
-                        <span style={{ fontSize:11, color:K.dimmer, fontWeight:700, minWidth:50 }}>{roundLabel(g.date)}</span>
-                        <span style={{ fontSize:11, color:K.dimmer, flex:1 }}>vs {g.opponent}</span>
-                        <span style={{ fontSize:13, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:g.pts >= 25 ? K.acc : K.dim }}>{g.pts} pts</span>
-                      </div>
-                    ))}
-                  </div>}
-                  {!revealedDead[p.name] && <div style={{ fontSize:9, color:K.dimmer, marginTop:6 }}>tap to reveal</div>}
-                </div>}
-                <div className="hov" onClick={() => setExpandedPlayer(isExpanded ? null : p.name)} style={{ display:'flex', alignItems:'center', gap:14, padding:14, cursor:'pointer' }}>
+              <div key={p.name} onClick={() => setExpandedPlayer(isExpanded ? null : p.name)} style={{ background:K.card, border:`1px solid ${isExpanded ? K.acc+'44' : p.eliminated ? K.dimmer : K.bdr}`, borderRadius:12, overflow:'hidden', animation:`slideIn .3s ease-out ${i*.06}s both`, borderLeft:SEED6_TEAMS.includes(p.team)?`3px solid ${K.blue}`:SEED11_TEAMS.includes(p.team)?`3px solid ${K.hot}`:'3px solid transparent', transition:'border-color .2s', cursor:'pointer' }}>
+                {/* Eliminated banner */}
+                {p.eliminated && (
+                  <div style={{ background:`${K.dimmer}`, padding:'4px 14px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ fontFamily:"'Anybody',sans-serif", fontSize:10, fontWeight:900, color:K.dim, letterSpacing:4 }}>SILENCE NOW</span>
+                    <span style={{ fontSize:10, color:K.dimmer }}>eliminated</span>
+                  </div>
+                )}
+                {/* Main card content */}
+                <div style={{ display:'flex', alignItems:'center', gap:14, padding:14, opacity: p.eliminated ? .55 : 1, filter: p.eliminated ? 'grayscale(.4)' : 'none', transition:'opacity .2s' }}>
                   <div style={{ fontSize:11, fontWeight:700, color:K.dim, width:22, textAlign:'center', flexShrink:0 }}>R{i+1}</div>
                   <Avatar name={p.name} team={p.team} seed={p.seed} size={54}/>
                   <div style={{ flex:1, minWidth:0 }}>
@@ -517,32 +514,32 @@ export default function Page() {
                     <div style={{ fontSize:12, color:K.dim, display:'flex', alignItems:'center', gap:4, marginTop:3 }}>
                       <TeamBadge team={p.team} size={15}/>{p.team} · #{p.seed} · {p.pos}
                     </div>
-                    {p.pts > 0 && <div style={{ fontSize:11, color:K.acc, marginTop:3, fontWeight:600 }}>Tournament: {p.pts} pts in {p.gamesPlayed} game{p.gamesPlayed!==1?'s':''}</div>}
+                    {!p.eliminated && liveGame && <div style={{ fontSize:11, color:K.acc, marginTop:3, fontWeight:600, display:'flex', alignItems:'center', gap:5 }}><div style={{ width:6, height:6, borderRadius:'50%', background:K.acc, animation:'liveDot 1.5s infinite' }}/>LIVE — {liveGame.away.abbr} {liveGame.away.score} - {liveGame.home.score} {liveGame.home.abbr}</div>}
+                    {!p.eliminated && !liveGame && nextGame && <div style={{ fontSize:11, color:K.dim, marginTop:3 }}>Next: vs {nextGame.home.name.toLowerCase().includes(p.team.toLowerCase()) ? nextGame.away.abbr : nextGame.home.abbr} · {new Date(nextGame.startTime).toLocaleDateString([], { weekday:'short', month:'short', day:'numeric' })}</div>}
+                    {p.eliminated && p.gamesPlayed > 0 && <div style={{ fontSize:11, color:K.dim, marginTop:3 }}>{p.gamesPlayed} game{p.gamesPlayed!==1?'s':''} played</div>}
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
-                    <div style={{ fontSize:22, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:sC(p.seed) }}>{p.ppg}</div>
-                    <div style={{ fontSize:9, color:K.dim }}>PPG</div>
-                    <div style={{ fontSize:10, color:K.dim, marginTop:3 }}>Hi: {p.hi}pts · {p.threes} 3s</div>
+                    <div style={{ fontSize:26, fontWeight:900, fontFamily:"'Anybody',sans-serif", color: p.eliminated ? K.dim : p.pts > 0 ? K.acc : K.dimmer }}>{p.pts}</div>
+                    <div style={{ fontSize:9, color:K.dim }}>tourney pts</div>
+                    <div style={{ fontSize:10, color:K.dimmer, marginTop:2 }}>{p.ppg} ppg</div>
                   </div>
                 </div>
-                {isExpanded && !p.eliminated && (
+                {/* Expanded game log */}
+                {isExpanded && (
                   <div style={{ padding:'0 14px 14px', borderTop:`1px solid ${K.bdr}`, animation:'slideIn .2s ease-out' }}>
                     {games.length === 0 ? (
-                      <div style={{ fontSize:12, color:K.dim, padding:'10px 0', textAlign:'center' }}>No tournament games yet</div>
+                      <div style={{ fontSize:12, color:K.dim, padding:'10px 0', textAlign:'center' }}>{p.eliminated ? 'No tournament stats recorded' : 'No tournament games yet'}</div>
                     ) : (
                       games.map((g, gi) => {
-                        const won = g.homeTeam?.toLowerCase().includes(p.team.toLowerCase())
-                          ? g.homeScore > g.awayScore
-                          : g.awayScore > g.homeScore;
-                        const score = g.homeTeam?.toLowerCase().includes(p.team.toLowerCase())
-                          ? `${g.homeScore}-${g.awayScore}`
-                          : `${g.awayScore}-${g.homeScore}`;
+                        const isHome = g.homeTeam?.toLowerCase().includes(p.team.toLowerCase());
+                        const won = isHome ? g.homeScore > g.awayScore : g.awayScore > g.homeScore;
+                        const score = isHome ? `${g.homeScore}-${g.awayScore}` : `${g.awayScore}-${g.homeScore}`;
                         return (
                           <div key={gi} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderTop:gi>0?`1px solid ${K.bdr}22`:'none' }}>
                             <div style={{ fontSize:12, fontWeight:800, color:K.acc, minWidth:58, fontFamily:"'Anybody',sans-serif" }}>{roundLabel(g.date)}</div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ fontSize:12, fontWeight:600 }}>vs {g.opponent}</div>
-                              <div style={{ fontSize:10, color:K.dim }}>{g.status === 'STATUS_FINAL' ? (won ? 'W' : 'L') + ' ' + score : g.status === 'STATUS_IN_PROGRESS' ? 'LIVE' : ''}</div>
+                              <div style={{ fontSize:10, color:K.dim }}>{g.status === 'STATUS_FINAL' ? <><span style={{ color: won ? K.acc : K.hot, fontWeight:700 }}>{won ? 'W' : 'L'}</span> {score}</> : g.status === 'STATUS_IN_PROGRESS' ? <span style={{ color:K.acc }}>LIVE</span> : ''}</div>
                             </div>
                             <div style={{ textAlign:'right' }}>
                               <div style={{ fontSize:18, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:g.pts >= 25 ? K.gold : g.pts >= 15 ? K.acc : K.txt }}>{g.pts}</div>
@@ -623,36 +620,51 @@ export default function Page() {
           ) : (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:10 }}>
               {dead.map((p, i) => {
+                const isExpanded = expandedPlayer === `grave:${p.name}`;
                 const games = (p.games || []).sort((a, b) => new Date(a.date) - new Date(b.date));
                 return (
-                <div key={p.name} style={{ background:K.card, border:`1px solid ${K.bdr}`, borderRadius:12, position:'relative', overflow:'hidden', animation:`slideIn .3s ease-out ${i*.05}s both`, cursor:'pointer' }} onClick={() => setRevealedDead(prev => ({ ...prev, [p.name]: !prev[p.name] }))}>
-                  <div style={{ padding:16, opacity: revealedDead[p.name] ? .6 : .25, filter: revealedDead[p.name] ? 'grayscale(.5)' : 'grayscale(1)', transition:'opacity .3s, filter .3s' }}>
+                <div key={p.name} style={{ background:K.card, border:`1px solid ${isExpanded ? K.dim : K.bdr}`, borderRadius:12, overflow:'hidden', animation:`slideIn .3s ease-out ${i*.05}s both`, cursor:'pointer', transition:'border-color .2s' }} onClick={() => setExpandedPlayer(isExpanded ? null : `grave:${p.name}`)}>
+                  {/* Silence banner */}
+                  <div style={{ background:K.dimmer, padding:'4px 12px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ fontFamily:"'Anybody',sans-serif", fontSize:10, fontWeight:900, color:K.dim, letterSpacing:4 }}>SILENCE NOW</span>
+                    <span style={{ fontSize:10, color:K.dimmer }}>{p.drafter}</span>
+                  </div>
+                  {/* Card content - visible, muted */}
+                  <div style={{ padding:14, opacity:.6, filter:'grayscale(.4)' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <Avatar name={p.name} team={p.team} seed={p.seed} size={48}/>
-                      <div>
-                        <div style={{ fontSize:15, fontWeight:700, textDecoration:'line-through' }}>{p.name}</div>
-                        <div style={{ fontSize:11, display:'flex', alignItems:'center', gap:4 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:15, fontWeight:700 }}>{p.name}</div>
+                        <div style={{ fontSize:11, display:'flex', alignItems:'center', gap:4, color:K.dim }}>
                           <TeamBadge team={p.team} size={12}/>{p.team} · #{p.seed}
                         </div>
-                        {revealedDead[p.name] && <div style={{ fontSize:12, color:K.acc, marginTop:4, fontWeight:600 }}>{p.pts} pts{p.gamesPlayed > 0 ? ` in ${p.gamesPlayed} game${p.gamesPlayed!==1?'s':''}` : ''}</div>}
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ fontSize:22, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:K.dim }}>{p.pts}</div>
+                        <div style={{ fontSize:9, color:K.dimmer }}>pts</div>
                       </div>
                     </div>
                   </div>
-                  <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background: revealedDead[p.name] ? 'rgba(6,6,16,.35)' : 'rgba(6,6,16,.65)', backdropFilter: revealedDead[p.name] ? 'blur(1px)' : 'blur(2px)', animation:'silenceIn .5s ease-out', transition:'background .3s, backdrop-filter .3s' }}>
-                    <div style={{ fontFamily:"'Anybody',sans-serif", fontSize:22, fontWeight:900, color:K.dim, letterSpacing:5 }}>SILENCE NOW</div>
-                    <div style={{ fontSize:11, color:K.dimmer, marginTop:4 }}>{p.name} · {p.team}</div>
-                    <div style={{ fontSize:10, color:K.dimmer, marginTop:4 }}>Drafted by <span style={{ color:K.dim }}>{p.drafter}</span> · {p.pts} pts</div>
-                    {revealedDead[p.name] && games.length > 0 && <div style={{ marginTop:8, width:'80%' }}>
-                      {games.map((g, gi) => (
-                        <div key={gi} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'3px 0', borderTop:gi>0?`1px solid ${K.dimmer}`:'none' }}>
-                          <span style={{ fontSize:11, color:K.dimmer, fontWeight:700, minWidth:50 }}>{roundLabel(g.date)}</span>
-                          <span style={{ fontSize:11, color:K.dimmer, flex:1 }}>vs {g.opponent}</span>
-                          <span style={{ fontSize:13, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:g.pts >= 25 ? K.acc : K.dim }}>{g.pts} pts</span>
-                        </div>
-                      ))}
-                    </div>}
-                    {!revealedDead[p.name] && <div style={{ fontSize:9, color:K.dimmer, marginTop:6 }}>tap to reveal</div>}
-                  </div>
+                  {/* Expanded game log */}
+                  {isExpanded && games.length > 0 && (
+                    <div style={{ padding:'0 14px 14px', borderTop:`1px solid ${K.bdr}`, animation:'slideIn .2s ease-out' }}>
+                      {games.map((g, gi) => {
+                        const isHome = g.homeTeam?.toLowerCase().includes(p.team.toLowerCase());
+                        const won = isHome ? g.homeScore > g.awayScore : g.awayScore > g.homeScore;
+                        const score = isHome ? `${g.homeScore}-${g.awayScore}` : `${g.awayScore}-${g.homeScore}`;
+                        return (
+                          <div key={gi} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderTop:gi>0?`1px solid ${K.bdr}22`:'none' }}>
+                            <div style={{ fontSize:11, fontWeight:800, color:K.dim, minWidth:46, fontFamily:"'Anybody',sans-serif" }}>{roundLabel(g.date)}</div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:12, fontWeight:600, color:K.dim }}>vs {g.opponent}</div>
+                              <div style={{ fontSize:10, color:K.dimmer }}>{g.status === 'STATUS_FINAL' ? <><span style={{ color: won ? K.acc : K.hot, fontWeight:700 }}>{won ? 'W' : 'L'}</span> {score}</> : ''}</div>
+                            </div>
+                            <div style={{ fontSize:16, fontWeight:900, fontFamily:"'Anybody',sans-serif", color:g.pts >= 25 ? K.gold : g.pts >= 15 ? K.dim : K.dimmer }}>{g.pts}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 );
               })}
@@ -667,12 +679,12 @@ export default function Page() {
 // ===== PLAYER TAB =====
 function PlayerTab({ data }) {
   const all = DRAFTERS.filter(d=>d!=='Ghost of Tib').flatMap(d => (data[d]||[]).map(p => ({ ...p, drafter: d })));
-  const [sort, setSort] = useState('ppg');
+  const [sort, setSort] = useState('pts');
   const sorted = [...all].sort((a,b) => sort==='ppg'?b.ppg-a.ppg:sort==='hi'?b.hi-a.hi:sort==='threes'?b.threes-a.threes:b.pts-a.pts);
 
   return <div style={{ animation:'slideIn .35s ease-out' }}>
     <div style={{ display:'flex', gap:5, marginBottom:14 }}>
-      {[['ppg','Season PPG'],['hi','Highest Game'],['threes','Most 3s'],['pts','Tourney Pts']].map(([k,l]) =>
+      {[['pts','Tourney Pts'],['ppg','Season PPG'],['hi','Highest Game'],['threes','Most 3s']].map(([k,l]) =>
         <button key={k} className="tab" onClick={() => setSort(k)} style={{ padding:'8px 14px', fontSize:12, fontWeight:sort===k?700:400, color:sort===k?'#000':K.txt, background:sort===k?K.acc:K.card, border:`1px solid ${sort===k?K.acc:K.bdr}`, borderRadius:8 }}>{l}</button>)}
     </div>
     {sorted.map((p, i) => {
